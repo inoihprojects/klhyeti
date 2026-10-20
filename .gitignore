@@ -1,0 +1,46 @@
+# Flutter/Dart
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+
+# Android
+android/.gradle/
+android/local.properties
+android/**/gradle-wrapper.jar
+android/gradlew
+android/gradlew.bat
+android/key.properties
+**/android/**/GeneratedPluginRegistrant.java
+
+# Windows
+windows/flutter/generated_plugin_registrant.*
+
+# Linux
+linux/flutter/generated_plugin_registrant.*
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Never commit signing material or anything derived from it.
+*.jks
+*.keystore
+*.p12
+key.txt
+key_base64.txt
+
+# Exported sync files contain your actual schedule.
+klhyeti-sync-*.json
+sync-exports/
+
+# Scratch folder for files handed over in chat.
+Claude outputs/
+
+# Misc
+.DS_Store
+
+# Maintainer notes, keep out of the repo.
+HANDOFF.md

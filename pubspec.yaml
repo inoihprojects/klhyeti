@@ -1,0 +1,72 @@
+name: klhyeti
+description: >
+  Klhyeti — open-source, lightweight calendar and schedule app for Android,
+  Windows and Linux, with local device-to-device sync.
+publish_to: "none"
+version: 1.0.0+7
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Local storage. sqflite works out of the box on Android; sqflite_common_ffi
+  # gives us the same API on Windows/Linux desktop by swapping the database
+  # factory at startup (see lib/data/database_factory_io.dart).
+  sqflite: ^2.3.3+1
+  sqflite_common_ffi: ^2.4.0
+  # Not imported directly: sqflite_common_ffi runs on it. Named here only to
+  # require 3.6 or later, which reads the per-platform setting under
+  # `hooks:` below.
+  sqlite3: ^3.6.0
+
+  path: ^1.9.0
+  path_provider: ^2.1.4
+
+  # Direct sync runs over TLS, which is built into Dart, but Dart cannot
+  # make the key and certificate TLS needs. This makes them (pure Dart, no
+  # native code), and supplies the SHA-256 behind the pairing code and the
+  # legacy revisions.
+  pointycastle: ^4.0.0
+
+  # File picker used for importing a sync payload, and for letting the user
+  # choose where an exported sync payload is saved.
+  file_picker: ^10.3.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  # Generates the platform icon files from assets/icon/ at build time.
+  flutter_launcher_icons: ^0.14.1
+
+# Run with: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: "assets/icon/icon.png"
+  android: true
+  adaptive_icon_background: "assets/icon/icon_background.png"
+  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
+  adaptive_icon_monochrome: "assets/icon/icon_monochrome.png"
+  windows:
+    generate: true
+    image_path: "assets/icon/icon.png"
+    icon_size: 256
+
+# The sqlite3 package puts a copy of SQLite into the Windows and Linux
+# builds, so the desktop app never depends on one happening to be installed.
+# Android needs none: there sqflite uses the SQLite built into Android, and
+# the bundled copy would be dead weight in the APK.
+hooks:
+  user_defines:
+    sqlite3:
+      source:
+        android: system
+        default: sqlite3
+
+flutter:
+  uses-material-design: true
+  # Public-holiday tables, generated offline by tool/make_holidays.py.
+  assets:
+    - assets/holidays/
