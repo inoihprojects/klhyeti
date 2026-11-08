@@ -2,6 +2,18 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+const int protocolVersion = 2;
+
+/// Shown when the other device speaks another [protocolVersion].
+const String otherVersionMessage =
+    'The other device runs a different version of Klhyeti. Update both to '
+    'the same one.';
+
+/// Shown when the other device hangs up at once, which is how Klhyeti
+/// 1.0 answers a version it doesn't know.
+const String hungUpMessage =
+    'The other device hung up. If it runs an older Klhyeti, update it.';
+
 /// The connection under both pairing and sync: one JSON object per line
 /// over a TLS socket, with a cap on how much the other side may send in
 /// total, so a stranger on the open port can't make this device hold on
@@ -9,6 +21,11 @@ import 'dart:io';
 ///
 /// Problems are thrown as [failure] makes them, so pairing reports its
 /// own kind of error and sync its own.
+///
+/// Pairing and sync both send [protocolVersion], and a device answers
+/// only its own: 2 since Klhyeti 1.1, which syncs repeating events that
+/// 1.0 (version 1) would lose. Devices on different versions refuse each
+/// other rather than lose anything.
 class Wire {
   final SecureSocket _socket;
   final Exception Function(String message) failure;

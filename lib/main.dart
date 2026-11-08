@@ -16,6 +16,7 @@ import 'data/database_factory_io.dart';
 import 'data/event_repository.dart';
 import 'data/holiday_repository.dart';
 import 'data/peer_repository.dart';
+import 'data/reminders.dart';
 import 'data/settings_repository.dart';
 import 'screens/calendar_screen.dart';
 import 'sync/sync_service.dart';
@@ -42,11 +43,16 @@ Future<void> main() async {
   );
   await sync.start();
 
+  final reminders =
+      Reminders(repo.database, repo: repo, settings: settings);
+  await reminders.start();
+
   runApp(KlhyetiApp(
     repo: repo,
     settings: settings,
     holidays: holidays,
     sync: sync,
+    reminders: reminders,
   ));
 }
 
@@ -55,6 +61,7 @@ class KlhyetiApp extends StatefulWidget {
   final SettingsRepository settings;
   final HolidayRepository holidays;
   final SyncService sync;
+  final Reminders reminders;
 
   const KlhyetiApp({
     super.key,
@@ -62,6 +69,7 @@ class KlhyetiApp extends StatefulWidget {
     required this.settings,
     required this.holidays,
     required this.sync,
+    required this.reminders,
   });
 
   @override
@@ -133,6 +141,7 @@ class _KlhyetiAppState extends State<KlhyetiApp> with WidgetsBindingObserver {
           settings: settings,
           holidays: widget.holidays,
           sync: widget.sync,
+          reminders: widget.reminders,
         ),
       ),
     );

@@ -4,7 +4,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
-const int _schemaVersion = 8;
+const int _schemaVersion = 10;
 
 const String _createSettingsTable = '''
   CREATE TABLE settings (
@@ -32,6 +32,15 @@ const List<String> _createHolidayTables = [
   ''',
   'CREATE INDEX idx_holiday_days_calendar ON holiday_days (calendar_id)',
 ];
+
+/// Reminders (Android): which events have one, and how many minutes
+/// before them. This device's own choice, never synced.
+const String _createRemindersTable = '''
+  CREATE TABLE reminders (
+    event_id TEXT PRIMARY KEY,
+    minutes INTEGER NOT NULL
+  )
+''';
 
 /// Direct sync: this device's own TLS certificate and key (one row), and
 /// the devices it has been paired with. Binary values are stored as
@@ -63,6 +72,7 @@ const List<String> _createPairingTables = [
 ///  - `settings`: this device's preferences, never synced.
 ///  - `holiday_calendars`, `holiday_days`: imported .ics holiday calendars.
 ///  - `tls_identity`, `paired_devices`: see [_createPairingTables].
+///  - `reminders`: see [_createRemindersTable].
 ///
 /// The file lives in the app's private data folder (`getApplicationSupport
 /// Directory`: AppData on Windows, ~/.local/share on Linux, the app's
@@ -107,7 +117,9 @@ Future<Database> openAppDatabase({
           deleted INTEGER NOT NULL DEFAULT 0,
           origin_device_id TEXT NOT NULL,
           rev TEXT,
-          history TEXT
+          history TEXT,
+          rrule TEXT,
+          exdates TEXT
         )
       ''');
       await db.execute('''
@@ -125,6 +137,7 @@ Future<Database> openAppDatabase({
       for (final sql in _createPairingTables) {
         await db.execute(sql);
       }
+      await db.execute(_createRemindersTable);
     },
     onUpgrade: (Database db, int oldVersion, int newVersion) async {
       if (oldVersion < 2) {
@@ -164,6 +177,15 @@ Future<Database> openAppDatabase({
         // Per-peer sync times, which the reconciler used before revisions
         // replaced them in 0.3. Nothing has read them since.
         await db.execute('DROP TABLE IF EXISTS sync_state');
+      }
+      if (oldVersion < 9) {
+        // Repeating events (see recurrence.dart). Existing rows are
+        // one-offs, which is what an empty rule means.
+        await db.execute('ALTER TABLE events ADD COLUMN rrule TEXT');
+        await db.execute('ALTER TABLE events ADD COLUMN exdates TEXT');
+      }
+      if (oldVersion < 10) {
+        await db.execute(_createRemindersTable);
       }
     },
   );

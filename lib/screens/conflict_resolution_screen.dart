@@ -5,11 +5,12 @@ import '../data/settings_repository.dart';
 import '../models/calendar_event.dart';
 import '../sync/sync_reconciler.dart';
 import '../theme/tokens.dart';
-import '../widgets/event_list.dart' show formatTimeOfDay;
+import '../widgets/event_list.dart'
+    show describeRepeat, formatTimeOfDay, longDate;
 import '../widgets/tap_fade.dart';
 
-/// Shown when a sync finds events that both devices changed since they
-/// last agreed. Nothing is merged or guessed (ARCHITECTURE.md): the two
+/// Shown when a sync finds events that two devices changed independently.
+/// Nothing is merged or guessed (ARCHITECTURE.md): the two
 /// devices' versions sit side by side and the user picks.
 ///
 /// The main choice is a whole device: "Keep newest" takes every conflict
@@ -127,8 +128,8 @@ class _ConflictResolutionScreenState extends State<ConflictResolutionScreen> {
                 _manual
                     ? 'Tap the version of each event you want to keep, or a '
                         'device name to keep everything from it.'
-                    : 'Both devices changed these events since they last '
-                        'synced. Nothing changes until you choose.',
+                    : 'Both devices changed these events separately. '
+                        'Nothing changes until you choose.',
                 style: TextStyle(fontSize: 14, color: c.ink2, height: 1.45),
               ),
             ),
@@ -285,9 +286,6 @@ class _VersionCell extends StatelessWidget {
     required this.onTap,
   });
 
-  String _date(DateTime local) =>
-      '${local.day} ${monthNames[local.month - 1]} ${local.year}';
-
   String get _title {
     if (event.deleted) return 'Deleted';
     return event.title.isEmpty ? 'Untitled' : event.title;
@@ -299,15 +297,19 @@ class _VersionCell extends StatelessWidget {
     final end = event.endAt.toLocal();
     final String when;
     if (event.allDay) {
-      when = _date(start);
+      when = longDate(start);
     } else {
       final from = formatTimeOfDay(context, start, use24HourTime);
       final to = formatTimeOfDay(context, end, use24HourTime);
-      when = '${_date(start)}, $from–$to';
+      when = '${longDate(start)}, $from–$to';
     }
     final location = event.location;
+    final rule = event.recurrence;
+    final skipped = event.exdates.length;
     return [
       when,
+      if (rule != null) describeRepeat(rule, start),
+      if (skipped > 0) skipped == 1 ? '1 date skipped' : '$skipped dates skipped',
       if (location != null && location.isNotEmpty) location,
     ];
   }

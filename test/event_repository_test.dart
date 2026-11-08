@@ -4,7 +4,6 @@
 // far east and one far west of UTC, where a mistake shows.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sqflite/sqflite.dart' show inMemoryDatabasePath;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:klhyeti/data/event_repository.dart';

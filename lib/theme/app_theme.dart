@@ -35,6 +35,13 @@ ThemeData buildKlhyetiTheme(Brightness brightness) {
     canvasColor: c.bg,
     dividerColor: c.line,
     splashFactory: NoSplash.splashFactory,
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: QuickPageTransitionsBuilder(),
+        TargetPlatform.linux: QuickPageTransitionsBuilder(),
+        TargetPlatform.windows: QuickPageTransitionsBuilder(),
+      },
+    ),
     highlightColor: Colors.transparent,
     hoverColor: c.surfaceAlt.withValues(alpha: 0.6),
     textTheme: text,
@@ -144,4 +151,54 @@ ThemeData buildKlhyetiTheme(Brightness brightness) {
       ),
     ),
   );
+}
+
+/// Moving between screens, in the app's own timing ([Motion.page]) on
+/// every platform; Flutter's own Android transition takes 450 ms. With
+/// reduced motion, screens simply switch.
+///
+/// Coming in, a screen covers the one below with plain paper at once and
+/// its content fades in, rising slightly, on that paper. A screen that
+/// faded in whole would let the one below show through it, which reads
+/// as a flash. Going back, the paper fades out too, uncovering the screen
+/// below smoothly.
+class QuickPageTransitionsBuilder extends PageTransitionsBuilder {
+  const QuickPageTransitionsBuilder();
+
+  @override
+  Duration get transitionDuration => Motion.page;
+
+  @override
+  Duration get reverseTransitionDuration => Motion.pageBack;
+
+  static final Animatable<double> _curve =
+      CurveTween(curve: Curves.easeOutCubic);
+  static final Animatable<Offset> _rise =
+      Tween<Offset>(begin: const Offset(0, 0.02), end: Offset.zero)
+          .chain(CurveTween(curve: Curves.easeOutCubic));
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
+    final Color paper = Theme.of(context).scaffoldBackgroundColor;
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, content) => ColoredBox(
+        color: animation.status == AnimationStatus.reverse
+            ? paper.withValues(alpha: animation.value)
+            : paper,
+        child: content,
+      ),
+      child: FadeTransition(
+        opacity: animation.drive(_curve),
+        child: SlideTransition(position: animation.drive(_rise), child: child),
+      ),
+    );
+  }
 }

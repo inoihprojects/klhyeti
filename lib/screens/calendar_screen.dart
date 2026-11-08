@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../data/event_repository.dart';
 import '../data/holiday_repository.dart';
+import '../data/reminders.dart';
 import '../data/settings_repository.dart';
 import '../models/calendar_event.dart';
 import '../sync/sync_reconciler.dart';
@@ -15,6 +16,7 @@ import '../widgets/continuous_month_grid.dart';
 import '../widgets/event_list.dart';
 import '../widgets/event_sheet.dart';
 import '../widgets/month_grid.dart';
+import '../widgets/settings_rows.dart' show chooseOne;
 import '../widgets/tap_fade.dart';
 import 'conflict_resolution_screen.dart';
 import 'event_edit_screen.dart';
@@ -43,12 +45,16 @@ class CalendarScreen extends StatefulWidget {
   final HolidayRepository holidays;
   final SyncService sync;
 
+  /// Null where nothing reminds (tests).
+  final Reminders? reminders;
+
   const CalendarScreen({
     super.key,
     required this.repo,
     required this.settings,
     required this.holidays,
     required this.sync,
+    this.reminders,
   });
 
   @override
@@ -195,18 +201,41 @@ class _CalendarScreenState extends State<CalendarScreen>
   }
 
   Future<void> _openEditor(CalendarEvent? event) async {
+    CalendarEvent? existing = event;
+    bool onlyThisDate = false;
+    // One date of a repeating event: that date, or the whole schedule?
+    if (event != null && event.occurrenceDay != null) {
+      final which = await chooseOne<bool>(
+        context,
+        title: event.title,
+        options: {
+          true: 'Only ${dayHeading(event.startAt.toLocal())}',
+          false: 'The whole schedule',
+        },
+      );
+      if (which == null || !mounted) return;
+      if (which.$1) {
+        onlyThisDate = true;
+      } else {
+        existing = await widget.repo.getById(event.id);
+        if (existing == null || !mounted) return;
+      }
+    }
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => EventEditScreen(
           repo: widget.repo,
           settings: widget.settings,
-          existing: event,
+          existing: existing,
           initialDay: _selectedDay,
+          onlyThisDate: onlyThisDate,
+          reminders: widget.reminders,
         ),
       ),
     );
     if (changed == true) await _reload();
   }
+
 
   Future<void> _openYearView() async {
     final month = await Navigator.of(context).push<DateTime>(

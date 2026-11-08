@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../models/calendar_event.dart';
+import '../models/recurrence.dart';
 import '../theme/tokens.dart';
 import 'tap_fade.dart';
 
-String formatTimeOfDay(BuildContext context, DateTime local, bool? use24h) {
-  final bool twentyFour =
-      use24h ?? MediaQuery.alwaysUse24HourFormatOf(context);
+String formatTimeOfDay(BuildContext context, DateTime local, bool? use24h) =>
+    clockText(local, use24h ?? MediaQuery.alwaysUse24HourFormatOf(context));
+
+/// "09:05", or "9:05am" when [twentyFour] is false.
+String clockText(DateTime local, bool twentyFour) {
   String two(int n) => n.toString().padLeft(2, '0');
   if (twentyFour) return '${two(local.hour)}:${two(local.minute)}';
   final int h12 = local.hour % 12 == 0 ? 12 : local.hour % 12;
@@ -17,6 +20,45 @@ String formatTimeOfDay(BuildContext context, DateTime local, bool? use24h) {
 /// "Wednesday 23 September": how a day is named above its events.
 String dayHeading(DateTime day) =>
     '${weekdayNames[day.weekday - 1]} ${day.day} ${monthNames[day.month - 1]}';
+
+/// "8 November 2026".
+String longDate(DateTime day) =>
+    '${day.day} ${monthNames[day.month - 1]} ${day.year}';
+
+/// "1st", "2nd", "23rd".
+String ordinal(int n) {
+  if (n % 100 >= 11 && n % 100 <= 13) return '${n}th';
+  return switch (n % 10) { 1 => '${n}st', 2 => '${n}nd', 3 => '${n}rd', _ => '${n}th' };
+}
+
+/// "Every Sunday", "Every 2 weeks on Mon, Thu", "Every month on the 14th",
+/// "Every year on 3 March, until 31 December 2030". [start] is the
+/// schedule's first date, or any of its dates: they share what is named.
+String describeRepeat(Recurrence rule, DateTime start) {
+  final n = rule.interval;
+  final String text;
+  switch (rule.unit) {
+    case RepeatUnit.day:
+      text = n == 1 ? 'Every day' : 'Every $n days';
+    case RepeatUnit.week:
+      final first = rule.weekStartsMonday ? DateTime.monday : DateTime.sunday;
+      final days = rule.weekdays.toList()
+        ..sort((a, b) => ((a - first + 7) % 7).compareTo((b - first + 7) % 7));
+      final names = days.length == 1
+          ? weekdayNames[days.single - 1]
+          : days.map((d) => weekdayNames[d - 1].substring(0, 3)).join(', ');
+      text = n == 1 ? 'Every $names' : 'Every $n weeks on $names';
+    case RepeatUnit.month:
+      final on = 'on the ${ordinal(start.day)}';
+      text = n == 1 ? 'Every month $on' : 'Every $n months $on';
+    case RepeatUnit.year:
+      final on = 'on ${start.day} ${monthNames[start.month - 1]}';
+      text = n == 1 ? 'Every year $on' : 'Every $n years $on';
+  }
+  final until = rule.until;
+  if (until == null) return text;
+  return '$text, until ${longDate(fromYmd(until))}';
+}
 
 /// One day's events: time in a fixed column, a thin rule, then title and a
 /// second line with location and description.
@@ -38,7 +80,9 @@ class EventRow extends StatelessWidget {
     final start = event.startAt.toLocal();
     final end = event.endAt.toLocal();
 
+    final rule = event.recurrence;
     final meta = <String>[
+      if (rule != null) describeRepeat(rule, start),
       if ((event.location ?? '').trim().isNotEmpty) event.location!.trim(),
       if ((event.description ?? '').trim().isNotEmpty)
         event.description!.trim().replaceAll('\n', ' '),

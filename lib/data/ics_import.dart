@@ -7,6 +7,8 @@
 /// day are dropped. Anything else in the file is ignored.
 library;
 
+import '../models/dates.dart';
+
 /// A day from an .ics file: [day] as yyyymmdd, and the event's name.
 class IcsDay {
   final int day;
@@ -153,8 +155,6 @@ DateTime? _date(String value) {
   return DateTime.utc(y, m, d);
 }
 
-int _ymd(DateTime d) => d.year * 10000 + d.month * 100 + d.day;
-
 Iterable<IcsDay> _expand(
   Map<String, _Property> event, {
   required int lastYear,
@@ -184,7 +184,7 @@ Iterable<IcsDay> _expand(
   for (final first in _occurrences(start, event['RRULE']?.value, lastYear)) {
     for (int i = 0; i < span; i++) {
       yield IcsDay(
-          _ymd(DateTime.utc(first.year, first.month, first.day + i)), name);
+          ymd(DateTime.utc(first.year, first.month, first.day + i)), name);
     }
   }
 }

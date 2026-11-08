@@ -3,7 +3,7 @@
 #
 # Where to find the results:
 #  - Any push: your repo -> "Actions" tab -> latest run -> "Artifacts".
-#  - A version tag (e.g. v0.2.0): also published as a proper Release on the
+#  - A version tag (e.g. v1.1): also published as a proper Release on the
 #    repo's "Releases" page. See RELEASING.md.
 #
 # The android/, windows/, linux/ platform folders aren't committed (see
@@ -18,8 +18,13 @@ on:
 # Reverse-domain prefix for the app's package id (Android applicationId is
 # $APP_ORG.klhyeti). Pick it once and keep it: changing it later makes
 # Android treat the app as a different app, with separate data.
+#
+# Outside the public repo, the build is "Klhyeti dev" instead: a separate
+# app with its own data on every platform, installed beside the real one,
+# so a test build never touches real events.
 env:
-  APP_ORG: io.github.inoihprojects
+  APP_ORG: ${{ github.repository == 'inoihprojects/klhyeti' && 'io.github.inoihprojects' || 'io.github.inoihprojects.dev' }}
+  APP_NAME: ${{ github.repository == 'inoihprojects/klhyeti' && 'Klhyeti' || 'Klhyeti dev' }}
 
 defaults:
   run:
@@ -114,6 +119,8 @@ jobs:
       # INTERNET, so the APK must ask for it (tool/post_create.sh adds it)
       # and the app itself refuses addresses that aren't private ones
       # (lib/sync/lan_address.dart, checked by test/pairing_test.dart).
+      # Reminders add showing notifications, restoring them after a
+      # restart and delivering them on the minute.
       # This step lists exactly what the APK asks Android for, and fails
       # if that ever includes anything about location, contacts, the
       # camera, the microphone, Bluetooth, the phone or text messages.
@@ -189,7 +196,7 @@ jobs:
 
   release:
     name: Publish release
-    # Only for version tags like v0.2.0 — see RELEASING.md.
+    # Only for version tags like v1.1 — see RELEASING.md.
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [check, android, windows, linux]
     runs-on: ubuntu-latest
@@ -198,10 +205,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Check the tag matches the version in pubspec.yaml
+        # v1.1.0, or v1.1 for short when the last number is 0.
         run: |
           version="$(grep -E '^version:' pubspec.yaml | sed -E 's/^version:[[:space:]]*//; s/\+.*//')"
-          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME doesn't match the version in pubspec.yaml ($version). Tag the commit as v$version instead."
+          if [ "v$version" != "$GITHUB_REF_NAME" ] && [ "v${version%.0}" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match the version in pubspec.yaml ($version). Tag the commit as v${version%.0} instead."
             exit 1
           fi
       - uses: actions/download-artifact@v4

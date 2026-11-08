@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../models/dates.dart';
 import '../theme/tokens.dart';
 import 'tap_fade.dart';
 
-/// Shared date helpers.
-bool isSameDay(DateTime a, DateTime b) =>
-    a.year == b.year && a.month == b.month && a.day == b.day;
-
-DateTime dayOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+export '../models/dates.dart' show dayOnly, daysBetween, isSameDay, weekStartOf;
 
 /// The 42 days (6 rows x 7 columns) drawn for [month], starting with the
 /// week that contains its 1st.
@@ -20,22 +17,6 @@ List<DateTime> monthGridDays(DateTime month, bool weekStartsMonday) {
     // neighbouring months correctly, including across year boundaries.
     (i) => DateTime(start.year, start.month, start.day + i),
   );
-}
-
-/// The first day of the week that contains [day].
-DateTime weekStartOf(DateTime day, bool weekStartsMonday) {
-  // DateTime.weekday runs Monday == 1 ... Sunday == 7.
-  final back = weekStartsMonday ? day.weekday - 1 : day.weekday % 7;
-  return DateTime(day.year, day.month, day.day - back);
-}
-
-/// Whole calendar days from [a] to [b]. Counted between UTC midnights of
-/// the same dates, so a 23- or 25-hour daylight-saving day still counts
-/// as exactly one.
-int daysBetween(DateTime a, DateTime b) {
-  return DateTime.utc(b.year, b.month, b.day)
-      .difference(DateTime.utc(a.year, a.month, a.day))
-      .inDays;
 }
 
 /// Weekday initials in display order, starting Sunday or Monday.

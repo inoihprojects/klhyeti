@@ -121,6 +121,17 @@ def main() -> None:
     mono.resize((S, S), Image.LANCZOS).save(
         os.path.join(OUT, 'icon_monochrome.png'))
 
+    # Android's status bar shows notifications by their silhouette alone,
+    # at 24 dp: the same band and dots, larger in the frame, 96 px (24 dp
+    # at the densest screens). tool/post_create.sh puts it in the app.
+    small = Image.new('RGBA', (N, N), (0, 0, 0, 0))
+    draw_band(small, 0.9)
+    draw_dots(small, 0.9)
+    note = Image.new('RGBA', (N, N), (0, 0, 0, 0))
+    note.paste((255, 255, 255, 255), mask=small.split()[3])
+    note.resize((96, 96), Image.LANCZOS).save(
+        os.path.join(OUT, 'icon_notification.png'))
+
     print('wrote', ', '.join(sorted(os.listdir(OUT))))
 
 

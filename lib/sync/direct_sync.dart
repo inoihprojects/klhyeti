@@ -108,13 +108,21 @@ Future<DirectSyncOutcome> syncWithPeer({
 
     wire.send({
       't': 'sync',
-      'v': 1,
+      'v': protocolVersion,
       'id': repo.deviceId,
       'secret': base64.encode(peer.secret),
     });
 
-    final first = await wire.read(_stepTimeout);
+    final Map<String, Object?> first;
+    try {
+      first = await wire.read(_stepTimeout);
+    } on DirectSyncFailure {
+      throw const DirectSyncFailure(hungUpMessage);
+    }
     if (first['t'] == 'busy') throw const DirectSyncBusy();
+    if (first['t'] == 'version') {
+      throw const DirectSyncFailure(otherVersionMessage);
+    }
     if (first['t'] == 'refused') {
       throw const DirectSyncFailure(
           'The other device no longer has this one paired. Pair them again.');
@@ -189,10 +197,12 @@ Future<DirectSyncOutcome?> serveSync({
     final hello = await wire.read(_stepTimeout);
     final id = hello['id'];
     final secret = hello['secret'];
-    if (hello['t'] != 'sync' ||
-        hello['v'] != 1 ||
-        id is! String ||
-        secret is! String) {
+    if (hello['t'] == 'sync' && hello['v'] != protocolVersion) {
+      wire.send({'t': 'version', 'v': protocolVersion});
+      await wire.close();
+      throw const DirectSyncFailure(otherVersionMessage);
+    }
+    if (hello['t'] != 'sync' || id is! String || secret is! String) {
       throw const DirectSyncFailure('Not a sync this version understands.');
     }
 

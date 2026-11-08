@@ -1,7 +1,3 @@
-import 'dart:convert';
-import 'dart:io';
-
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../data/event_repository.dart';
@@ -9,7 +5,8 @@ import '../data/holiday_repository.dart';
 import '../data/settings_repository.dart';
 import '../sync/sync_service.dart';
 import '../theme/tokens.dart';
-import '../widgets/tap_fade.dart';
+import '../widgets/settings_rows.dart';
+import 'holidays_screen.dart';
 import 'sync_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -42,8 +39,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: SafeArea(
         child: ListView(
           children: [
-            _section(c, 'Appearance'),
-            _row(
+            sectionLabel(c, 'Appearance'),
+            tapRow(
               c,
               title: 'Theme',
               value: switch (s.themeMode) {
@@ -53,7 +50,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
               onTap: _pickTheme,
             ),
-            _section(c, 'Calendar'),
+            sectionLabel(c, 'Calendar'),
             _segmentedRow<bool>(
               c,
               title: 'Week starts on',
@@ -93,7 +90,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   if (mounted) setState(() {});
                 },
               ),
-            _switchRow(
+            switchRow(
               c,
               title: 'Colour Saturdays and Sundays',
               subtitle: 'Sundays vermilion, Saturdays indigo',
@@ -103,7 +100,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 setState(() {});
               },
             ),
-            _row(
+            tapRow(
               c,
               title: 'Time format',
               value: switch (s.use24HourTime) {
@@ -113,15 +110,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
               onTap: _pickTimeFormat,
             ),
-            ..._holidaySection(c),
-            _section(c, 'Sync'),
-            _row(
+            tapRow(
+              c,
+              title: 'Holidays',
+              value: switch (widget.holidays.enabledRegions.length +
+                  widget.holidays.imported.length) {
+                0 => 'None',
+                final n => '$n on',
+              },
+              onTap: () async {
+                await Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => HolidaysScreen(holidays: widget.holidays),
+                ));
+                if (mounted) setState(() {});
+              },
+            ),
+            sectionLabel(c, 'Sync'),
+            tapRow(
               c,
               title: 'This device is called',
               value: s.deviceName,
               onTap: _editDeviceName,
             ),
-            _row(
+            tapRow(
               c,
               title: 'Paired devices and sync files',
               value: '',
@@ -135,18 +146,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
             ),
-            _switchRow(
+            switchRow(
               c,
               title: 'Automatic sync',
-              subtitle: 'With paired devices, when Klhyeti opens and after '
-                  'each change, while it is open',
+              subtitle: 'With paired devices, when Klhyeti opens and '
+                  'after each change',
               value: s.autoSync,
               onChanged: (value) async {
                 await s.setAutoSync(value);
                 if (mounted) setState(() {});
               },
             ),
-            _section(c, 'About'),
+            sectionLabel(c, 'About'),
             Padding(
               padding: const EdgeInsets.fromLTRB(
                   Insets.md, Insets.sm, Insets.md, Insets.xl),
@@ -173,9 +184,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: Insets.md),
                   Text(
-                    'Klhyeti never connects to the internet. It uses the local '
-                    'network only when it pairs or syncs devices. Events stay '
-                    'on the devices, and sync only when asked.',
+                    'Klhyeti never connects to the internet. It uses the '
+                    'local network only to pair and sync devices.',
                     style: TextStyle(fontSize: 13, color: c.ink2, height: 1.4),
                   ),
                   const SizedBox(height: Insets.md),
@@ -192,171 +202,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
     );
-  }
-
-  Widget _section(KlhyetiColors c, String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          Insets.md, Insets.lg, Insets.md, Insets.sm),
-      child: Text(
-        title.toUpperCase(),
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.6,
-          color: c.ink3,
-        ),
-      ),
-    );
-  }
-
-  Widget _row(
-    KlhyetiColors c, {
-    required String title,
-    required String value,
-    required VoidCallback onTap,
-  }) {
-    return TapFade(
-      onTap: onTap,
-      child: Container(
-        color: Colors.transparent,
-        padding: const EdgeInsets.symmetric(
-            horizontal: Insets.md, vertical: 14),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(title, style: TextStyle(fontSize: 15, color: c.ink)),
-            ),
-            Text(value, style: TextStyle(fontSize: 14, color: c.ink2)),
-            const SizedBox(width: Insets.sm),
-            Icon(Icons.chevron_right, size: 18, color: c.ink3),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _switchRow(
-    KlhyetiColors c, {
-    required String title,
-    String? subtitle,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return Padding(
-      padding:
-          const EdgeInsets.symmetric(horizontal: Insets.md, vertical: Insets.sm),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: TextStyle(fontSize: 15, color: c.ink)),
-                if (subtitle != null)
-                  Text(subtitle,
-                      style: TextStyle(fontSize: 13, color: c.ink3)),
-              ],
-            ),
-          ),
-          Switch(value: value, onChanged: onChanged),
-        ],
-      ),
-    );
-  }
-
-  /// Holidays: opt-in, one switch per bundled region, then
-  /// any imported .ics calendars, each removable.
-  List<Widget> _holidaySection(KlhyetiColors c) {
-    final h = widget.holidays;
-    return [
-      _section(c, 'Holidays'),
-      for (final region in holidayRegions)
-        _switchRow(
-          c,
-          title: region.name,
-          value: h.enabledRegions.contains(region.code),
-          onChanged: (value) async {
-            await h.setRegionEnabled(region.code, value);
-            if (mounted) setState(() {});
-          },
-        ),
-      for (final calendar in h.imported)
-        Padding(
-          padding: const EdgeInsets.only(left: Insets.md, right: Insets.xs),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(calendar.name,
-                        style: TextStyle(fontSize: 15, color: c.ink)),
-                    Text(
-                      'Imported, ${calendar.dayCount} '
-                      '${calendar.dayCount == 1 ? 'day' : 'days'}',
-                      style: TextStyle(fontSize: 13, color: c.ink3),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close),
-                tooltip: 'Remove ${calendar.name}',
-                onPressed: () async {
-                  await h.removeImported(calendar.id);
-                  if (mounted) setState(() {});
-                },
-              ),
-            ],
-          ),
-        ),
-      _row(
-        c,
-        title: 'Import an .ics file',
-        value: '',
-        onTap: _importIcs,
-      ),
-      Padding(
-        padding: const EdgeInsets.fromLTRB(
-            Insets.md, Insets.xs, Insets.md, Insets.sm),
-        child: Text(
-          'Worked out from each country\'s holiday rules for 2000 to 2099 '
-          'and bundled with the app, so nothing is downloaded. Days off '
-          'announced year by year, one-off holidays and election days '
-          'aren\'t included; an imported calendar can add them.',
-          style: TextStyle(fontSize: 13, color: c.ink3, height: 1.4),
-        ),
-      ),
-    ];
-  }
-
-  Future<void> _importIcs() async {
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        dialogTitle: 'Choose a calendar (.ics) file',
-        type: FileType.custom,
-        allowedExtensions: ['ics'],
-        withData: true,
-      );
-      if (result == null || result.files.isEmpty) return;
-      final file = result.files.single;
-      final bytes = file.bytes ??
-          (file.path == null ? null : await File(file.path!).readAsBytes());
-      if (bytes == null) return;
-      final name = file.name.replaceAll(RegExp(r'\.ics$', caseSensitive: false), '');
-      final count = await widget.holidays
-          .importIcs(name, utf8.decode(bytes, allowMalformed: true));
-      messenger.showSnackBar(SnackBar(
-        content: Text(count == 0
-            ? 'No dates found in that file.'
-            : 'Imported $count ${count == 1 ? 'day' : 'days'}.'),
-      ));
-      if (mounted) setState(() {});
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Import failed: $e')));
-    }
   }
 
   /// A setting with two values, both shown at once: the choice is visible
@@ -421,7 +266,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _pickTheme() async {
-    final chosen = await _choose<ThemeMode>(
+    final chosen = await chooseOne<ThemeMode>(
+      context,
       title: 'Theme',
       options: const {
         ThemeMode.system: 'Follow the system',
@@ -431,68 +277,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
       current: s.themeMode,
     );
     if (chosen == null) return;
-    await s.setThemeMode(chosen);
+    await s.setThemeMode(chosen.$1);
     if (mounted) setState(() {});
   }
 
   Future<void> _pickTimeFormat() async {
-    final chosen = await _choose<String>(
+    final chosen = await chooseOne<bool?>(
+      context,
       title: 'Time format',
       options: const {
-        'system': 'Follow the system',
-        '24': '24-hour',
-        '12': '12-hour',
+        null: 'Follow the system',
+        true: '24-hour',
+        false: '12-hour',
       },
-      current: switch (s.use24HourTime) {
-        true => '24',
-        false => '12',
-        null => 'system',
-      },
+      current: s.use24HourTime,
     );
     if (chosen == null) return;
-    await s.setUse24HourTime(switch (chosen) {
-      '24' => true,
-      '12' => false,
-      _ => null,
-    });
+    await s.setUse24HourTime(chosen.$1);
     if (mounted) setState(() {});
-  }
-
-  Future<T?> _choose<T>({
-    required String title,
-    required Map<T, String> options,
-    required T current,
-  }) {
-    return showDialog<T>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: Text(title),
-        children: [
-          for (final entry in options.entries)
-            SimpleDialogOption(
-              onPressed: () => Navigator.of(context).pop(entry.key),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: Insets.sm),
-                child: Row(
-                  children: [
-                    Icon(
-                      entry.key == current
-                          ? Icons.check
-                          : Icons.check_box_outline_blank,
-                      size: 18,
-                      color: entry.key == current
-                          ? context.c.ink
-                          : Colors.transparent,
-                    ),
-                    const SizedBox(width: Insets.md),
-                    Text(entry.value),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
   }
 
   Future<void> _editDeviceName() async {

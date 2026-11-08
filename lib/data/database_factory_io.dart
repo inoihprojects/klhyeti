@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 /// sqflite talks to the platform's native SQLite bindings on Android/iOS

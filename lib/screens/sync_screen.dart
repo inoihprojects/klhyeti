@@ -12,6 +12,7 @@ import '../sync/lan_address.dart';
 import '../sync/sync_reconciler.dart';
 import '../sync/sync_service.dart';
 import '../theme/tokens.dart';
+import '../widgets/settings_rows.dart' show sectionLabel;
 import 'conflict_resolution_screen.dart';
 import 'pair_screen.dart';
 
@@ -112,7 +113,7 @@ class _SyncScreenState extends State<SyncScreen> {
               const SizedBox(height: Insets.sm),
               Text(listening, style: body),
             ],
-            _heading(c, 'Paired devices'),
+            sectionLabel(c, 'Paired devices', inset: false),
             if (_paired.isEmpty)
               Text('None yet.', style: body)
             else
@@ -156,9 +157,8 @@ class _SyncScreenState extends State<SyncScreen> {
                 ),
             if (_paired.isNotEmpty) ...[
               Text(
-                'The sync button on the calendar syncs with every paired '
-                'device it can reach. Sync here to sync with one, or to '
-                'give a new address when a device has moved.',
+                'The sync button on the calendar syncs with all of them. '
+                'Sync here with one, or give a new address if it has moved.',
                 style: body,
               ),
               const SizedBox(height: Insets.md),
@@ -169,12 +169,11 @@ class _SyncScreenState extends State<SyncScreen> {
               label: const Text('Pair a device'),
               onPressed: _busy ? null : _pair,
             ),
-            _heading(c, 'Sync file'),
+            sectionLabel(c, 'Sync file', inset: false),
             Text(
-              'For when the two devices can\'t reach each other. Export a '
-              'sync file here and move it to your other device with '
-              'LocalSend, Syncthing, a USB cable — anything. Then import it '
-              'there.',
+              'For devices that can\'t reach each other: export a sync '
+              'file, move it to the other device any way you like, and '
+              'import it there.',
               style: body,
             ),
             const SizedBox(height: Insets.md),
@@ -190,21 +189,6 @@ class _SyncScreenState extends State<SyncScreen> {
               onPressed: _busy ? null : _import,
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _heading(KlhyetiColors c, String title) {
-    return Padding(
-      padding: const EdgeInsets.only(top: Insets.lg, bottom: Insets.sm),
-      child: Text(
-        title.toUpperCase(),
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.6,
-          color: c.ink3,
         ),
       ),
     );

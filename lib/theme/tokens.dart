@@ -123,6 +123,10 @@ abstract final class Motion {
   static const Duration view = Duration(milliseconds: 280);
   static const Duration theme = Duration(milliseconds: 200);
 
+  /// Moving to another screen, and back.
+  static const Duration page = Duration(milliseconds: 200);
+  static const Duration pageBack = Duration(milliseconds: 160);
+
   /// Honours the OS "reduce motion" setting: everything becomes instant.
   ///
   /// Depends on that one setting only. MediaQuery.of would make every

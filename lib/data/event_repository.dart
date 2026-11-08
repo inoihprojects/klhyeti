@@ -75,12 +75,27 @@ class EventRepository extends ChangeNotifier {
     final DateTime end = DateTime(day.year, day.month, day.day + 1);
     final rows = await _database.query(
       'events',
-      where: 'deleted = 0 AND start_at < ? AND end_at > ?',
+      where: 'deleted = 0 AND rrule IS NULL AND start_at < ? AND end_at > ?',
       whereArgs: [
         end.toUtc().millisecondsSinceEpoch,
         start.toUtc().millisecondsSinceEpoch,
       ],
-      orderBy: 'start_at ASC',
+    );
+    final events = rows.map(CalendarEvent.fromDbMap).toList();
+    for (final series in await _repeatingStartedBefore(end)) {
+      events.addAll(series.occurrencesOverlapping(start, end));
+    }
+    events.sort((a, b) => a.startAt.compareTo(b.startAt));
+    return events;
+  }
+
+  /// Repeating events whose first date starts before [end]: the only ones
+  /// that can have a date before it.
+  Future<List<CalendarEvent>> _repeatingStartedBefore(DateTime end) async {
+    final rows = await _database.query(
+      'events',
+      where: 'deleted = 0 AND rrule IS NOT NULL AND start_at < ?',
+      whereArgs: [end.toUtc().millisecondsSinceEpoch],
     );
     return rows.map(CalendarEvent.fromDbMap).toList();
   }
@@ -92,17 +107,23 @@ class EventRepository extends ChangeNotifier {
     final rows = await _database.query(
       'events',
       columns: ['start_at'],
-      where: 'deleted = 0 AND start_at >= ? AND start_at < ?',
+      where: 'deleted = 0 AND rrule IS NULL AND start_at >= ? AND start_at < ?',
       whereArgs: [
         rangeStart.toUtc().millisecondsSinceEpoch,
         rangeEnd.toUtc().millisecondsSinceEpoch,
       ],
     );
+    final starts = [
+      for (final row in rows)
+        DateTime.fromMillisecondsSinceEpoch(row['start_at']! as int,
+            isUtc: true),
+      for (final series in await _repeatingStartedBefore(rangeEnd))
+        for (final date in series.occurrencesOverlapping(rangeStart, rangeEnd))
+          if (!date.startAt.isBefore(rangeStart.toUtc())) date.startAt,
+    ];
     final counts = <DateTime, int>{};
-    for (final row in rows) {
-      final dt = DateTime.fromMillisecondsSinceEpoch(row['start_at']! as int,
-              isUtc: true)
-          .toLocal();
+    for (final utc in starts) {
+      final dt = utc.toLocal();
       final day = DateTime(dt.year, dt.month, dt.day);
       counts[day] = (counts[day] ?? 0) + 1;
     }
@@ -117,13 +138,15 @@ class EventRepository extends ChangeNotifier {
 
   // --- Writes from the UI ---------------------------------------------
 
-  Future<void> createEvent({
+  /// Returns the new event's id.
+  Future<String> createEvent({
     required String title,
     String? description,
     String? location,
     required DateTime startAt,
     required DateTime endAt,
     bool allDay = false,
+    String? rrule,
   }) async {
     final event = CalendarEvent(
       id: newUuid(),
@@ -136,10 +159,12 @@ class EventRepository extends ChangeNotifier {
       updatedAt: DateTime.now().toUtc(),
       originDeviceId: deviceId,
       rev: newRevision(),
+      rrule: rrule,
     );
     await _database.insert('events', event.toDbMap(),
         conflictAlgorithm: ConflictAlgorithm.replace);
     _edited();
+    return event.id;
   }
 
   void _edited() {
@@ -163,6 +188,7 @@ class EventRepository extends ChangeNotifier {
     required DateTime startAt,
     required DateTime endAt,
     required bool allDay,
+    String? rrule,
   }) async {
     final updated = CalendarEvent(
       id: existing.id,
@@ -177,10 +203,60 @@ class EventRepository extends ChangeNotifier {
       originDeviceId: deviceId,
       rev: newRevision(),
       history: existing.historyForNextEdit(),
+      rrule: rrule,
+      // Skipped dates belong to a schedule; a one-off has none.
+      exdates: rrule == null ? const [] : existing.exdates,
     );
     await _database.insert('events', updated.toDbMap(),
         conflictAlgorithm: ConflictAlgorithm.replace);
     _edited();
+  }
+
+  /// Leaves the date [day] (yyyymmdd) out of the repeating event [id]:
+  /// deleting that one date. An edit of the schedule, so it syncs.
+  Future<void> skipDate(String id, int day) async {
+    final series = await getById(id);
+    if (series == null || series.deleted || series.exdates.contains(day)) {
+      return;
+    }
+    await _database.insert(
+      'events',
+      series
+          .copyWith(
+            exdates: [...series.exdates, day]..sort(),
+            updatedAt: DateTime.now().toUtc(),
+            originDeviceId: deviceId,
+            rev: newRevision(),
+            history: series.historyForNextEdit(),
+          )
+          .toDbMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    _edited();
+  }
+
+  /// Changes one date of a repeating event: that date is left out of the
+  /// schedule and becomes an event of its own, with the values given.
+  /// Returns that event's id.
+  Future<String> detachDate(
+    String id,
+    int day, {
+    required String title,
+    String? description,
+    String? location,
+    required DateTime startAt,
+    required DateTime endAt,
+    required bool allDay,
+  }) async {
+    await skipDate(id, day);
+    return createEvent(
+      title: title,
+      description: description,
+      location: location,
+      startAt: startAt,
+      endAt: endAt,
+      allDay: allDay,
+    );
   }
 
   /// Soft-delete: keeps the row as a tombstone so the deletion can be

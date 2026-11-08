@@ -1,15 +1,16 @@
-# Releasing klhyeti
+# Releasing Klhyeti
 
 ## Version numbers
 
-The version is the `version:` line in `pubspec.yaml`, e.g. `0.1.0+4`:
+The version is the `version:` line in `pubspec.yaml`, e.g. `1.1.0+8`:
 
-- `0.1.0` is the version people see. klhyeti follows
-  [Semantic Versioning](https://semver.org): while it's below 1.0 the data
-  and sync format may still change. Bump the middle number for a batch of
-  new features (`0.1.0` → `0.2.0`) and the last number for fixes only
-  (`0.1.0` → `0.1.1`). 1.0 means "stable: updates won't break your data."
-- `+4` is the build number. Android uses it to tell that an APK is newer
+- `1.1.0` is the version people see. Klhyeti follows
+  [Semantic Versioning](https://semver.org): bump the middle number for a
+  batch of new features (`1.1.0` → `1.2.0`) and the last number for fixes
+  only (`1.1.0` → `1.1.1`). Since 1.0, updates don't break existing data.
+  When one changes the sync format, older versions refuse to sync with it
+  instead of losing anything, so every device needs the update.
+- `+8` is the build number. Android uses it to tell that an APK is newer
   than the one installed, so it must go up by one on **every** release.
 
 ## Publishing a release
@@ -19,11 +20,12 @@ The version is the `version:` line in `pubspec.yaml`, e.g. `0.1.0+4`:
 2. In GitHub Desktop, choose **Repository** → **Open in Git Bash** (or
    **Open in Command Prompt**).
 3. Type these two lines, with `v` plus the version without the build
-   number:
+   number, leaving off a last `.0` (`1.1.0` is tagged `v1.1`, `1.1.2`
+   is tagged `v1.1.2`):
 
    ```
-   git tag v0.1.0
-   git push origin v0.1.0
+   git tag v1.1
+   git push origin v1.1
    ```
 
 Don't use GitHub Desktop's **Create Tag…**. It makes an *annotated* tag,
@@ -61,7 +63,7 @@ It asks for a password. Pick a strong one and write it down.
 
 Keep `klhyeti-release.jks` and its password somewhere safe and **outside
 this repository** (a password manager, an encrypted USB stick). If you lose
-it, no future version can ever update an installed klhyeti; everyone would
+it, no future version can ever update an installed Klhyeti; everyone would
 have to uninstall and reinstall. Never commit it to Git.
 
 ### 3. Give it to GitHub

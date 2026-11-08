@@ -94,13 +94,18 @@ class PairingSession {
       final nonce = randomBytes(32);
       wire.send({
         't': 'pair',
-        'v': 1,
+        'v': protocolVersion,
         'id': deviceId,
         'name': deviceName,
         'cert': base64.encode(ownCert),
         'commit': base64.encode(_sha256(nonce)),
       });
-      final reply = await wire.read(_stepTimeout);
+      final Map<String, Object?> reply;
+      try {
+        reply = await wire.read(_stepTimeout);
+      } on PairingFailure {
+        throw const PairingFailure(hungUpMessage);
+      }
       _expect(reply, 'pair');
       final peerNonce = _bytes(reply['nonce'], 32);
       final peerId = _text(reply['id']);
@@ -148,7 +153,7 @@ class PairingSession {
       final nonce = randomBytes(32);
       wire.send({
         't': 'pair',
-        'v': 1,
+        'v': protocolVersion,
         'id': deviceId,
         'name': deviceName,
         'nonce': base64.encode(nonce),
@@ -298,7 +303,11 @@ Uint8List _sha256(List<int> data) {
 }
 
 void _expect(Map<String, Object?> message, String type) {
-  if (message['t'] != type || (type == 'pair' && message['v'] != 1)) {
+  if (type == 'pair' && message['t'] == 'pair' &&
+      message['v'] != protocolVersion) {
+    throw const PairingFailure(otherVersionMessage);
+  }
+  if (message['t'] != type) {
     throw const PairingFailure(
         'The other device is not a Klhyeti this version can pair with.');
   }

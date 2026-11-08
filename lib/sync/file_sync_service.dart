@@ -8,11 +8,11 @@ import '../data/event_repository.dart';
 import 'sync_payload.dart';
 import 'sync_reconciler.dart';
 
-/// Phase-1 sync transport (see ARCHITECTURE.md): writes/reads a JSON
-/// [SyncPayload] file. Moving that file between devices is left to the user
-/// — LocalSend, Syncthing, USB, whatever's on hand. This is also the
-/// permanent fallback once direct local-network sync exists, for whenever
-/// discovery doesn't work (different subnets, client isolation, etc).
+/// The sync file (see ARCHITECTURE.md): writes and reads a JSON
+/// [SyncPayload]. Moving it between devices is left to the user, by
+/// LocalSend, Syncthing, a USB cable or anything else. The fallback for
+/// when two devices can't reach each other directly (different subnets,
+/// client isolation, a firewall).
 class FileSyncService {
   final EventRepository repo;
   const FileSyncService(this.repo);
@@ -38,7 +38,7 @@ class FileSyncService {
     // save dialog. On desktop it only returns the chosen path and we write
     // the file ourselves.
     final String? savePath = await FilePicker.platform.saveFile(
-      dialogTitle: 'Save klhyeti sync file',
+      dialogTitle: 'Save a Klhyeti sync file',
       fileName: defaultName,
       bytes: Platform.isAndroid ? bytes : null,
     );
@@ -55,7 +55,7 @@ class FileSyncService {
   /// Returns null if the user cancelled the file picker.
   Future<ReconcileResult?> importFromFile() async {
     final result = await FilePicker.platform.pickFiles(
-      dialogTitle: 'Choose a klhyeti sync file',
+      dialogTitle: 'Choose a Klhyeti sync file',
       type: FileType.custom,
       allowedExtensions: ['json'],
       withData: true,

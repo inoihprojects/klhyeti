@@ -3,10 +3,10 @@ description: >
   Klhyeti — open-source, lightweight calendar and schedule app for Android,
   Windows and Linux, with local device-to-device sync.
 publish_to: "none"
-version: 1.0.0+7
+version: 1.1.0+8
 
 environment:
-  sdk: ">=3.3.0 <4.0.0"
+  sdk: ">=3.10.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -31,9 +31,17 @@ dependencies:
   # legacy revisions.
   pointycastle: ^4.0.0
 
-  # File picker used for importing a sync payload, and for letting the user
-  # choose where an exported sync payload is saved.
+  # Choosing a sync file or an .ics calendar to import, and where an
+  # exported sync file is saved.
   file_picker: ^10.3.3
+
+  # Reminders, on Android only: notifications Android itself delivers at
+  # the time set, with no server or push service involved. The desktop
+  # builds carry the package but never call it.
+  flutter_local_notifications: ^22.3.3
+  # The type a scheduled time is given in. Only UTC is used, so no time
+  # zone data is loaded.
+  timezone: ^0.11.0
 
 dev_dependencies:
   flutter_test:

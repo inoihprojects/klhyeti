@@ -7,9 +7,9 @@
 - Devices sync directly with each other over the local network when possible.
   If that fails or isn't available, an exported/imported sync file (movable by
   LocalSend, Syncthing, USB, etc.) is the guaranteed fallback transport.
-- No silent auto-merge of conflicting edits: when both devices changed the
-  same event since the last sync, the user is shown both versions and picks
-  which one wins.
+- No silent auto-merge of conflicting edits: when two devices changed the
+  same event independently, the user is shown both versions and picks which
+  one wins.
 
 ## Data model
 
@@ -19,6 +19,15 @@ Every event has:
   event is created, and never regenerated. This is what lets both devices
   recognize "this is the same event" across syncs.
 - `title`, `description`, `location`, `startAt`, `endAt`, `allDay`
+- `rrule` and `exdates` — for a repeating event, its rule and the dates
+  left out of it (`lib/models/recurrence.dart`); empty for a one-off.
+  The rule is a small subset of iCalendar's RRULE: every N days, weeks
+  (on chosen weekdays), months or years, until a date or for good, e.g.
+  `FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,TH;WKST=MO`. A date a rule names that
+  doesn't exist, such as 31 April, is skipped. A repeating event is one
+  row however many dates it has, and syncs as one event: deleting one
+  date adds it to `exdates`, and changing one date does that and adds
+  a one-off event.
 - `updatedAt` (UTC timestamp) — bumped on every local edit.
 - `deleted` (bool, tombstone) — deletions are soft: we mark `deleted = true`
   and bump `updatedAt` instead of removing the row, so a deletion can be
@@ -29,7 +38,7 @@ Every event has:
 - `originDeviceId` — which device last wrote this row. Informational.
 - `rev` and `history` — a random id for this version, and the ids of the
   versions it was made on top of, newest first (the last 32). Every edit,
-  deletion and settled conflict makes a new `rev` and pushes the old one
+  deletion, skipped date and settled conflict makes a new `rev` and pushes the old one
   onto `history`. This, not the clock, is how sync tells a newer copy
   from a conflicting one (`lib/models/revision.dart`). Events saved
   before revisions existed get a `rev` worked out from their id and
@@ -47,12 +56,20 @@ a `SyncPayload`, which is just:
 
 ```json
 {
+  "format": 2,
   "deviceId": "...",
   "deviceName": "...",
   "generatedAt": "...",
-  "events": [ /* every event, tombstones included, with rev and history */ ]
+  "events2": [ /* every event, tombstones included, with rev and history */ ]
 }
 ```
+
+Format 2 came with repeating events in 1.1. Its events sit under
+`events2` rather than 1.0's `events`, so Klhyeti 1.0 finds nothing to
+import in a newer file instead of taking schedules as one-off events and
+losing their repeats. Files from 1.0 still import. Pairing and direct
+sync likewise send protocol version 2, and devices on different versions
+refuse each other with a message to update.
 
 Reconciling an incoming payload, event by event:
 
@@ -78,10 +95,9 @@ is never mistaken for a conflict, however it travelled. (Before 0.3 a
 per-peer "last synced" time decided this, which made false conflicts
 between three devices and trusted the clocks.)
 
-This same reconciliation function is reused by both transports below, so
-adding the second transport later is wiring, not new sync logic.
+Both transports below use this same reconciliation.
 
-### Transport 1: file export/import (fallback, built first)
+### Transport 1: file export/import (fallback)
 
 - "Export" writes a `SyncPayload` JSON file to disk.
 - The user moves that file to the other device by whatever means they like
@@ -92,9 +108,7 @@ adding the second transport later is wiring, not new sync logic.
 This is simple, has no networking code at all, and works even if the two
 devices are never on the same network at the same time.
 
-### Transport 2: direct local-network sync (primary, built after the fallback works)
-
-Built in steps; pairing and transfer exist, discovery does not yet.
+### Transport 2: direct local-network sync (primary)
 
 - **Addresses.** Only private IPv4 addresses are ever connected to or
   accepted from (`lib/sync/lan_address.dart`). Names are never looked up.
@@ -112,9 +126,6 @@ Built in steps; pairing and transfer exist, discovery does not yet.
   a shared 32-byte secret. From then on a connection is trusted only if
   the listening device presents exactly that certificate and the
   connecting device sends that secret inside the encrypted connection.
-- **Discovery** (to come): a small UDP announcement on the local network,
-  so the address doesn't have to be typed. Not mDNS: the Dart package for
-  it can only search, not announce.
 - **Transfer** (`lib/sync/direct_sync.dart`). The other device connects,
   accepting only the certificate stored at pairing, and sends the shared
   secret. The listening device sends everything it has; the connecting
@@ -136,21 +147,23 @@ Built in steps; pairing and transfer exist, discovery does not yet.
 - The file transport stays as the fallback (captive networks, client
   isolation on the Wi-Fi router, devices on different subnets and
   firewalls all break direct connections — this is common enough that
-  the fallback has to keep working, not just exist for day one).
+  the fallback has to keep working).
+
+## Reminders (Android)
+
+A reminder is a notification some minutes before an event (or, for an
+all-day event, at 9:00 that day or the day before). Which events have
+one is this device's own choice, kept in its `reminders` table and never
+synced. Android delivers them itself, through `flutter_local_notifications`,
+with Klhyeti closed and after a restart: Klhyeti schedules the next ones
+within 60 days whenever events or reminders change and each time it
+opens (`lib/data/reminders.dart`). Windows and Linux have no reminders.
 
 ## Why Flutter
 
 Single Dart codebase compiles to genuinely native apps on Android, Windows,
-and Linux (desktop support is stable, not experimental). Mature calendar
-widgets, large community/beginner resources, and hot reload for fast
-iteration. Binaries are heavier than a pure-native app but "lightweight" in
-the sense that matters here: no bundled Chromium, no background services,
-modest memory footprint, and a single toolchain to learn instead of three.
-
-## Build order
-
-1. Android app: local calendar backed by SQLite. Done.
-2. File export/import sync, tested by hand between two installs. Done.
-3. Windows and Linux desktop builds from the same codebase. Done.
-4. Direct local-network sync on top of the same payload and reconciler.
-   Pairing and transfer done; discovery next.
+and Linux (desktop support is stable, not experimental). Large community
+and beginner resources, and hot reload for fast iteration. Binaries are
+heavier than a pure-native app but "lightweight" in the sense that matters
+here: no bundled Chromium, no background services, modest memory footprint,
+and a single toolchain to learn instead of three.

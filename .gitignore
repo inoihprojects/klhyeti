@@ -41,6 +41,7 @@ Claude outputs/
 
 # Misc
 .DS_Store
+__pycache__/
 
 # Maintainer notes, keep out of the repo.
 HANDOFF.md
